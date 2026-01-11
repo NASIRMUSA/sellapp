@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ShopKeeper - Sell & Inventory</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <!-- FontAwesome for Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div id="app" class="app-container">
+      <!-- SCREEN: WELCOME -->
+      <section id="welcome-screen" class="screen active">
+        <div class="welcome-content">
+          <div class="logo-area">
+            <i class="fa-solid fa-store fa-3x brand-icon"></i>
+            <h1>ShopKeeper</h1>
+            <p class="tagline">
+              Manage your shop, track sales, and grow your business.
+            </p>
+          </div>
+          <div class="bottom-actions">
+            <button
+              class="btn btn-primary"
+              onclick="showScreen('login-screen')"
+            >
+              Login
+            </button>
+            <button
+              class="btn btn-outline"
+              onclick="showScreen('register-screen')"
+            >
+              Register
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN: LOGIN -->
+      <section id="login-screen" class="screen">
+        <div class="header-simple">
+          <button class="icon-btn" onclick="showScreen('welcome-screen')">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <h2>Login</h2>
+        </div>
+        <form class="auth-form" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label>Email Address</label>
+            <input type="email" placeholder="name@example.com" required />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Login</button>
+        </form>
+      </section>
+
+      <!-- SCREEN: REGISTER -->
+      <section id="register-screen" class="screen">
+        <div class="header-simple">
+          <button class="icon-btn" onclick="showScreen('welcome-screen')">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <h2>Register</h2>
+        </div>
+        <form class="auth-form" onsubmit="handleRegister(event)">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" placeholder="John Doe" required />
+          </div>
+          <div class="form-group">
+            <label>Shop Name</label>
+            <input type="text" placeholder="My Awesome Shop" required />
+          </div>
+          <div class="form-group">
+            <label>Phone Number</label>
+            <input type="tel" placeholder="0123456789" required />
+          </div>
+          <div class="form-group">
+            <label>Email Address</label>
+            <input type="email" placeholder="name@example.com" required />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">
+            Create Account
+          </button>
+        </form>
+      </section>
+
+      <!-- SCREEN: DASHBOARD -->
+      <section id="dashboard-screen" class="screen">
+        <div class="app-header">
+          <div>
+            <h2>My Dashboard</h2>
+            <div class="shop-name-badge">My Awesome Shop</div>
+          </div>
+          <button class="icon-btn" onclick="handleLogout()" title="Logout">
+            <i class="fa-solid fa-right-from-bracket" style="color: #EF4444;"></i>
+          </button>
+        </div>
+
+        <div class="dashboard-content">
+          <!-- Row 1 -->
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="label">Total Product(s)</span>
+              <h3 class="value" id="dash-total-products">0</h3>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="label">Total Shop Value</span>
+              <h3 class="value" id="dash-total-value">₦0</h3>
+            </div>
+          </div>
+
+          <!-- Row 2 -->
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="label">Total Sales</span>
+              <h3 class="value" id="dash-sales-week">₦0</h3>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="label">Profit</span>
+              <h3 class="value" id="dash-profit">₦0</h3>
+            </div>
+          </div>
+
+          <!-- Row 3 -->
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="label">Remaining Products</span>
+              <h3 class="value" id="dash-stock-count">0</h3>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="label">Remaining Value</span>
+              <h3 class="value" id="dash-stock-value">₦0</h3>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Nav -->
+        <nav class="bottom-nav">
+          <button
+            class="nav-item active"
+            onclick="showScreen('dashboard-screen')"
+          >
+            <i class="fa-solid fa-house"></i>
+            <span>Home</span>
+          </button>
+          <button class="nav-item" onclick="showScreen('add-product-screen')">
+            <i class="fa-solid fa-plus-circle"></i>
+            <span>Add</span>
+          </button>
+          <button class="nav-item" onclick="showScreen('sell-screen')">
+            <i class="fa-solid fa-cart-shopping"></i>
+            <span>Sell</span>
+          </button>
+        </nav>
+      </section>
+
+      <!-- SCREEN: ADD PRODUCT -->
+      <section id="add-product-screen" class="screen">
+        <div class="app-header">
+          <h2>Add Product</h2>
+        </div>
+        <div class="content-scrollable">
+          <form class="app-form" onsubmit="handleAddProduct(event)">
+            <div class="form-group">
+              <label>Product Name</label>
+              <input
+                type="text"
+                name="name"
+                placeholder="e.g. Wireless Mouse"
+                required
+              />
+            </div>
+            <div class="form-group">
+                <label>Cost Price (₦)</label>
+                <input
+                  type="number"
+                  name="costPrice"
+                  step="0.01"
+                  placeholder="0.00"
+                />
+            </div>
+            <div class="form-group">
+              <label>Quantity</label>
+              <input type="number" name="quantity" placeholder="0" required />
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">
+              Save Product
+            </button>
+          </form>
+
+          <div class="manage-products-section">
+            <h3 class="section-title">Manage Inventory</h3>
+            <div id="inventory-list" class="product-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+        <!-- Bottom Nav -->
+        <nav class="bottom-nav">
+          <button class="nav-item" onclick="showScreen('dashboard-screen')">
+            <i class="fa-solid fa-house"></i>
+            <span>Home</span>
+          </button>
+          <button
+            class="nav-item active"
+            onclick="showScreen('add-product-screen')"
+          >
+            <i class="fa-solid fa-plus-circle"></i>
+            <span>Add</span>
+          </button>
+          <button class="nav-item" onclick="showScreen('sell-screen')">
+            <i class="fa-solid fa-cart-shopping"></i>
+            <span>Sell</span>
+          </button>
+        </nav>
+      </section>
+
+      <!-- SCREEN: SELL -->
+      <section id="sell-screen" class="screen">
+        <div class="app-header">
+          <h2>Sell Product</h2>
+        </div>
+
+        <div class="search-bar-container">
+          <div class="search-input">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" placeholder="Search by product name..." />
+          </div>
+          <div style="margin-top: 12px;">
+             <button class="btn btn-block" style="background: #e5e7eb; color: #374151; width: 100%; border-radius: 8px;" onclick="showScreen('history-screen')">View Sell History</button>
+          </div>
+        </div>
+
+        <div id="sell-product-list" class="product-list">
+          <!-- Dynamically populated from productsCache -->
+        </div>
+
+        <!-- Bottom Nav -->
+        <nav class="bottom-nav">
+          <button class="nav-item" onclick="showScreen('dashboard-screen')">
+            <i class="fa-solid fa-house"></i>
+            <span>Home</span>
+          </button>
+          <button class="nav-item" onclick="showScreen('add-product-screen')">
+            <i class="fa-solid fa-plus-circle"></i>
+            <span>Add</span>
+          </button>
+          <button class="nav-item active" onclick="showScreen('sell-screen')">
+            <i class="fa-solid fa-cart-shopping"></i>
+            <span>Sell</span>
+          </button>
+        </nav>
+      </section>
+
+      <!-- SCREEN: HISTORY -->
+      <section id="history-screen" class="screen">
+        <div class="header-simple">
+          <button class="icon-btn" onclick="showScreen('sell-screen')">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <h2>Sales History</h2>
+        </div>
+        <div class="history-list">
+          <!-- Dynamically populated from transactionsCache -->
+        </div>
+      </section>
+
+      <!-- MODAL: SELL -->
+      <div id="sell-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 id="modal-product-name">Sell Product</h3>
+            <button class="close-btn" onclick="closeSellModal()">
+              &times;
+            </button>
+          </div>
+          <div class="modal-body">
+            <p class="stock-info">
+              Available: <span id="modal-stock-qty">0</span>
+            </p>
+            <div class="form-group">
+              <label>Sell Price</label>
+              <input type="number" id="modal-sell-price" step="0.01" />
+            </div>
+            <div class="form-group">
+              <label>Quantity</label>
+              <input type="number" id="modal-sell-qty" value="1" min="1" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeSellModal()">
+              Cancel
+            </button>
+            <button class="btn btn-primary" onclick="confirmSell()">
+              Display Sell
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: EDIT PRODUCT -->
+      <div id="edit-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Edit Product</h3>
+            <button class="close-btn" onclick="closeEditModal()">
+              &times;
+            </button>
+          </div>
+          <form id="edit-product-form" onsubmit="handleUpdateProduct(event)">
+            <input type="hidden" id="edit-product-id" />
+            <div class="modal-body">
+              <div class="form-group">
+                <label>Product Name</label>
+                <input type="text" id="edit-product-name" required />
+              </div>
+              <div class="form-group">
+                <label>Cost Price (₦)</label>
+                <input type="number" id="edit-product-cost" step="0.01" />
+              </div>
+              <div class="form-group">
+                <label>Quantity in Stock</label>
+                <input type="number" id="edit-product-qty" required />
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" onclick="closeEditModal()">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary">
+                Update Product
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loader Overlay -->
+    <div id="loader-overlay">
+      <div class="spinner"></div>
+      <p style="color: var(--primary); font-weight: 600; margin-top: 10px;">Processing...</p>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+    
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
