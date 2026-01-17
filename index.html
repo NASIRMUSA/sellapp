@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ShopKeeper - Sell & Inventory</title>
+    <title>AnemaSales - Sell & Inventory</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -20,11 +20,11 @@
   <body>
     <div id="app" class="app-container">
       <!-- SCREEN: WELCOME -->
-      <section id="welcome-screen" class="screen active">
+      <section id="welcome-screen" class="screen">
         <div class="welcome-content">
           <div class="logo-area">
-            <i class="fa-solid fa-store fa-3x brand-icon"></i>
-            <h1>ShopKeeper</h1>
+            <img src="logo.png" alt="AnemaSales Logo" class="brand-icon"> 
+            <h1>AnemaSales</h1>
             <p class="tagline">
               Manage your shop, track sales, and grow your business.
             </p>
@@ -57,11 +57,11 @@
         <form class="auth-form" onsubmit="handleLogin(event)">
           <div class="form-group">
             <label>Email Address</label>
-            <input type="email" placeholder="name@example.com" required />
+            <input type="email" placeholder="Email Address" required />
           </div>
           <div class="form-group">
             <label>Password</label>
-            <input type="password" placeholder="••••••••" required />
+            <input type="password" placeholder="Password" required />
           </div>
           <button type="submit" class="btn btn-primary btn-block">Login</button>
         </form>
@@ -78,23 +78,23 @@
         <form class="auth-form" onsubmit="handleRegister(event)">
           <div class="form-group">
             <label>Full Name</label>
-            <input type="text" placeholder="John Doe" required />
+            <input type="text" placeholder="Full Name" required />
           </div>
           <div class="form-group">
             <label>Shop Name</label>
-            <input type="text" placeholder="My Awesome Shop" required />
+            <input type="text" placeholder="Shop Name" required />
           </div>
           <div class="form-group">
             <label>Phone Number</label>
-            <input type="tel" placeholder="0123456789" required />
+            <input type="tel" placeholder="Phone Number" required />
           </div>
           <div class="form-group">
             <label>Email Address</label>
-            <input type="email" placeholder="name@example.com" required />
+            <input type="email" placeholder="Email Address" required />
           </div>
           <div class="form-group">
             <label>Password</label>
-            <input type="password" placeholder="••••••••" required />
+            <input type="password" placeholder="Password" required />
           </div>
           <button type="submit" class="btn btn-primary btn-block">
             Create Account
@@ -107,10 +107,13 @@
         <div class="app-header">
           <div>
             <h2>My Dashboard</h2>
-            <div class="shop-name-badge">My Awesome Shop</div>
+            <div id="display-shop-name" class="shop-name-badge">Loading...</div>
           </div>
           <button class="icon-btn" onclick="handleLogout()" title="Logout">
-            <i class="fa-solid fa-right-from-bracket" style="color: #EF4444;"></i>
+            <i
+              class="fa-solid fa-right-from-bracket"
+              style="color: #ef4444"
+            ></i>
           </button>
         </div>
 
@@ -195,13 +198,14 @@
               />
             </div>
             <div class="form-group">
-                <label>Cost Price (₦)</label>
-                <input
-                  type="number"
-                  name="costPrice"
-                  step="0.01"
-                  placeholder="0.00"
-                />
+              <label>Cost Price (₦)</label>
+              <input
+                type="text"
+                name="costPrice"
+                inputmode="decimal"
+                class="money-input"
+                placeholder="0.00"
+              />
             </div>
             <div class="form-group">
               <label>Quantity</label>
@@ -250,8 +254,19 @@
             <i class="fa-solid fa-magnifying-glass"></i>
             <input type="text" placeholder="Search by product name..." />
           </div>
-          <div style="margin-top: 12px;">
-             <button class="btn btn-block" style="background: #e5e7eb; color: #374151; width: 100%; border-radius: 8px;" onclick="showScreen('history-screen')">View Sell History</button>
+          <div style="margin-top: 12px">
+            <button
+              class="btn btn-block"
+              style="
+                background: #e5e7eb;
+                color: #374151;
+                width: 100%;
+                border-radius: 8px;
+              "
+              onclick="showScreen('history-screen')"
+            >
+              View Sell History
+            </button>
           </div>
         </div>
 
@@ -304,7 +319,7 @@
             </p>
             <div class="form-group">
               <label>Sell Price</label>
-              <input type="number" id="modal-sell-price" step="0.01" />
+              <input type="text" id="modal-sell-price" inputmode="decimal" class="money-input" />
             </div>
             <div class="form-group">
               <label>Quantity</label>
@@ -340,7 +355,7 @@
               </div>
               <div class="form-group">
                 <label>Cost Price (₦)</label>
-                <input type="number" id="edit-product-cost" step="0.01" />
+                <input type="text" id="edit-product-cost" inputmode="decimal" class="money-input" />
               </div>
               <div class="form-group">
                 <label>Quantity in Stock</label>
@@ -348,7 +363,11 @@
               </div>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" onclick="closeEditModal()">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                onclick="closeEditModal()"
+              >
                 Cancel
               </button>
               <button type="submit" class="btn btn-primary">
@@ -360,15 +379,56 @@
       </div>
     </div>
 
+      <!-- MODAL: EDIT SALE -->
+      <div id="edit-sale-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Edit Sale</h3>
+            <button class="close-btn" onclick="closeEditSaleModal()">
+              &times;
+            </button>
+          </div>
+          <form id="edit-sale-form" onsubmit="handleUpdateSale(event)">
+            <input type="hidden" id="edit-sale-id" />
+            <div class="modal-body">
+              <p id="edit-sale-product-name" style="font-weight: 600; margin-bottom: 15px; color: var(--primary);"></p>
+              <div class="form-group">
+                <label>Selling Price (₦)</label>
+                <input type="text" id="edit-sale-price" inputmode="decimal" class="money-input" required />
+              </div>
+              <div class="form-group">
+                <label>Quantity Sold</label>
+                <input type="number" id="edit-sale-qty" min="1" required />
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" onclick="closeEditSaleModal()">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary">
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
     <!-- Loader Overlay -->
-    <div id="loader-overlay">
+    <div id="loader-overlay" style="display: flex;">
       <div class="spinner"></div>
-      <p style="color: var(--primary); font-weight: 600; margin-top: 10px;">Processing...</p>
+      <p id="loader-status" style="color: var(--primary); font-weight: 600; margin-top: 10px">
+        Loading AnemaSales...
+      </p>
+      <div id="retry-container" class="hidden" style="margin-top: 15px; text-align: center;">
+        <button class="btn btn-outline btn-sm" onclick="window.location.reload()">
+          <i class="fa-solid fa-rotate-right" style="margin-right: 8px;"></i> Retry Loading
+        </button>
+      </div>
     </div>
 
     <!-- Toast Container -->
     <div id="toast-container"></div>
-    
+
     <script type="module" src="app.js"></script>
   </body>
 </html>

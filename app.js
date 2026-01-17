@@ -18,9 +18,12 @@ import {
     updateDoc, 
     deleteDoc,
     doc, 
+    getDoc,
+    setDoc,
     query, 
     where,
-    Timestamp 
+    Timestamp,
+    enableIndexedDbPersistence 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // --- Configuration ---
@@ -39,14 +42,57 @@ try {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
+    
+    // Enable Offline Persistence
+    enableIndexedDbPersistence(db).catch((err) => {
+        if (err.code == 'failed-precondition') {
+            console.warn("Persistence failed: Multiple tabs open");
+        } else if (err.code == 'unimplemented') {
+            console.warn("Persistence failed: Browser not supported");
+        }
+    });
 } catch (error) {
     console.error("Firebase init failed:", error);
 }
 
 // Global State (Cache)
 let currentUser = null;
+let currentUserProfile = null;
 let productsCache = [];
 let transactionsCache = [];
+
+// --- Utilities ---
+function sanitizeInput(str) {
+    if (typeof str !== 'string') return str;
+    // Remove HTML tags completely to prevent any tag injection
+    return str.replace(/<[^>]*>?/gm, '').trim();
+}
+
+function isInputSafe(str) {
+    if (typeof str !== 'string') return true;
+    // Check for common malicious patterns: <script>, javascript:, onmouseover, etc.
+    const dangerousPatterns = [/<script/i, /javascript:/i, /on\w+=/i, /<iframe/i];
+    return !dangerousPatterns.some(pattern => pattern.test(str));
+}
+
+function escapeHTML(str) {
+    if (typeof str !== 'string') return str;
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function formatWithCommas(value) {
+    if (!value && value !== 0) return '';
+    const parts = value.toString().split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
+}
+
+function parseFromCommas(value) {
+    if (typeof value !== 'string') return value;
+    return value.replace(/,/g, '');
+}
 
 // --- Global Exports for HTML Access ---
 window.handleLogin = handleLogin;
@@ -56,29 +102,50 @@ window.showScreen = showScreen;
 window.openSellModal = openSellModal;
 window.closeSellModal = closeSellModal;
 window.confirmSell = confirmSell;
-window.confirmSell = confirmSell;
 window.handleLogout = handleLogout;
 window.showToast = showToast;
 window.deleteProduct = deleteProduct;
 window.openEditModal = openEditModal;
 window.closeEditModal = closeEditModal;
 window.handleUpdateProduct = handleUpdateProduct;
+window.openEditSaleModal = openEditSaleModal;
+window.closeEditSaleModal = closeEditSaleModal;
+window.handleUpdateSale = handleUpdateSale;
 
 // Initialize Listeners
 document.addEventListener('DOMContentLoaded', () => {
     // Auth Listener
+    let loadTimeout = setTimeout(() => {
+        showRetry("Loading is taking longer than usual. Please check your connection.");
+    }, 15000); // 15 seconds timeout
+
     if(auth) {
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                console.log("Logged in:", user.email);
-                loadData(); 
-                showScreen('dashboard-screen');
-            } else {
-                currentUser = null;
-                showScreen('welcome-screen');
+        onAuthStateChanged(auth, async (user) => {
+            try {
+                if (user) {
+                    currentUser = user;
+                    console.log("Logged in:", user.email);
+                    const success = await loadData(); 
+                    if(success) {
+                        clearTimeout(loadTimeout);
+                        showScreen('dashboard-screen');
+                        hideLoading();
+                    } else {
+                        showRetry("Failed to sync data. Check your network.");
+                    }
+                } else {
+                    currentUser = null;
+                    clearTimeout(loadTimeout);
+                    showScreen('welcome-screen');
+                    hideLoading();
+                }
+            } catch (error) {
+                console.error("Auth listener error:", error);
+                showRetry("Authentication failed. Please retry.");
             }
         });
+    } else {
+        showRetry("Firebase initialization failed.");
     }
 
     // Search Listener
@@ -95,13 +162,65 @@ document.addEventListener('DOMContentLoaded', () => {
             closeSellModal();
         }
     }
+
+    // Money Input Formatter
+    document.addEventListener('input', (e) => {
+        if (e.target.classList.contains('money-input')) {
+            const cursorPosition = e.target.selectionStart;
+            const originalLength = e.target.value.length;
+            
+            // Allow only digits, one decimal point, and commas
+            let value = e.target.value.replace(/[^0-9.]/g, '');
+            
+            // Ensure only one dot
+            const parts = value.split('.');
+            if (parts.length > 2) value = parts[0] + '.' + parts.slice(1).join('');
+            
+            const formatted = formatWithCommas(value);
+            e.target.value = formatted;
+            
+            // Restore cursor position
+            const newLength = formatted.length;
+            const diff = newLength - originalLength;
+            e.target.setSelectionRange(cursorPosition + diff, cursorPosition + diff);
+        }
+    });
+
+    // Network Status Listeners
+    window.addEventListener('offline', () => {
+        const loader = document.getElementById('loader-overlay');
+        if(loader && loader.style.display === 'flex') {
+            showRetry("You are offline. Please check your internet.");
+        }
+    });
+
+    window.addEventListener('online', () => {
+        const loader = document.getElementById('loader-overlay');
+        const retry = document.getElementById('retry-container');
+        // If we were showing a retry error but are now back online, maybe just tip them to try again
+        if(loader && loader.style.display === 'flex' && retry && !retry.classList.contains('hidden')) {
+             showToast("Connection restored. Retrying...", "info");
+             window.location.reload();
+        }
+    });
 });
 
 // --- Auth Functions ---
 async function handleLogin(e) {
     e.preventDefault();
-    const email = e.target.querySelector('input[type="email"]').value;
+    const emailRaw = e.target.querySelector('input[type="email"]').value;
     const password = e.target.querySelector('input[type="password"]').value;
+
+    if (!isInputSafe(emailRaw)) {
+        showToast("Invalid characters in email.", "warning");
+        return;
+    }
+
+    const email = sanitizeInput(emailRaw);
+    if (!email) {
+        showToast("Please enter a valid email.", "warning");
+        return;
+    }
     
     showLoading();
     try {
@@ -123,12 +242,44 @@ async function handleLogin(e) {
 
 async function handleRegister(e) {
     e.preventDefault();
-    const email = e.target.querySelector('input[type="email"]').value;
-    const password = e.target.querySelector('input[type="password"]').value;
+    const form = e.target;
+    const fullNameRaw = form.querySelector('input[placeholder="Full Name"]').value;
+    const shopNameRaw = form.querySelector('input[placeholder="Shop Name"]').value;
+    const phoneRaw = form.querySelector('input[placeholder="Phone Number"]').value;
+    const emailRaw = form.querySelector('input[type="email"]').value;
+    const password = form.querySelector('input[type="password"]').value;
+
+    // Security Check
+    if (!isInputSafe(fullNameRaw) || !isInputSafe(shopNameRaw) || 
+        !isInputSafe(phoneRaw) || !isInputSafe(emailRaw)) {
+        showToast("Security Alert: Malicious characters detected!", "error");
+        return;
+    }
+
+    const fullName = sanitizeInput(fullNameRaw);
+    const shopName = sanitizeInput(shopNameRaw);
+    const phone = sanitizeInput(phoneRaw);
+    const email = sanitizeInput(emailRaw);
+
+    if (!fullName || !shopName || !email) {
+        showToast("Please fill in all fields correctly.", "warning");
+        return;
+    }
     
     showLoading();
     try {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        
+        // Save profile to Firestore
+        await setDoc(doc(db, "users", user.uid), {
+            fullName,
+            shopName,
+            phone,
+            email,
+            createdAt: Timestamp.now()
+        });
+
         showToast("Account Created! You are being logged in.", 'success');
     } catch (error) {
         console.error("Registration Error Code:", error.code);
@@ -149,21 +300,32 @@ async function handleRegister(e) {
 
 // --- Data Loading ---
 async function loadData() {
-    if(!currentUser || !db) return;
+    if(!currentUser || !db) return false;
 
     try {
-        // Load Products (Only mine)
+        // Load User Profile
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists()) {
+            currentUserProfile = userDoc.data();
+            safeSetText('display-shop-name', currentUserProfile.shopName || "My Shop");
+        } else {
+            safeSetText('display-shop-name', "My Shop");
+        }
+
+        // Load Products
         const qProd = query(
             collection(db, "products"), 
             where("ownerId", "==", currentUser.uid)
         );
+        
+        // Use getDocs which will now hit the local cache first if persistence is enabled
         const prodSnap = await getDocs(qProd);
         
         productsCache = prodSnap.docs
             .map(d => ({id: d.id, ...d.data()}))
             .sort((a,b) => a.name.localeCompare(b.name));
 
-        // Load Transactions (Only mine)
+        // Load Transactions
         const qTrans = query(
             collection(db, "transactions"),
             where("ownerId", "==", currentUser.uid)
@@ -173,7 +335,6 @@ async function loadData() {
         transactionsCache = transSnap.docs
             .map(d => ({id: d.id, ...d.data()}))
             .sort((a, b) => {
-                // Client side sort descending
                 const dateA = a.date && a.date.toDate ? a.date.toDate() : new Date(a.date || 0);
                 const dateB = b.date && b.date.toDate ? b.date.toDate() : new Date(b.date || 0);
                 return dateB - dateA;
@@ -183,8 +344,12 @@ async function loadData() {
         renderProductList();
         renderInventoryList();
         renderHistory();
+        return true;
     } catch (e) {
         console.error("Error loading data:", e);
+        // If we have cached data, we still return true to let the user in
+        if (productsCache.length > 0) return true;
+        return false;
     }
 }
 
@@ -195,7 +360,7 @@ function updateDashboard() {
 
     const totalProducts = products.length;
     // Calculate stock value (Sell Price * Qty)
-    const totalValue = products.reduce((sum, p) => sum + (p.price * p.qty), 0);
+    const totalValue = Math.round(products.reduce((sum, p) => sum + (p.price * p.qty), 0) * 100) / 100;
     
     // Sales This Week
     const now = new Date();
@@ -205,19 +370,19 @@ function updateDashboard() {
         const d = t.date && t.date.toDate ? t.date.toDate() : new Date(t.date);
         return d >= oneWeekAgo;
     });
-    const salesWeek = relevantSales.reduce((sum, t) => sum + (t.price * t.qty), 0);
+    const salesWeek = Math.round(relevantSales.reduce((sum, t) => sum + (t.price * t.qty), 0) * 100) / 100;
     
     // Profit
-    const totalProfit = transactions.reduce((sum, t) => {
+    const totalProfit = Math.round(transactions.reduce((sum, t) => {
         const cost = t.cost || 0; 
         return sum + ((t.price - cost) * t.qty);
-    }, 0);
+    }, 0) * 100) / 100;
 
     // Remaining Stock
     const totalStock = products.reduce((sum, p) => sum + p.qty, 0);
     
     // Remaining Value (Cost Value of Asset)
-    const stockValueCost = products.reduce((sum, p) => sum + ((p.cost || 0) * p.qty), 0);
+    const stockValueCost = Math.round(products.reduce((sum, p) => sum + ((p.cost || 0) * p.qty), 0) * 100) / 100;
 
     safeSetText('dash-total-products', formatNumber(totalProducts));
     safeSetText('dash-total-value', formatMoney(totalValue)); 
@@ -249,11 +414,22 @@ async function handleAddProduct(e) {
     if(!currentUser) return;
 
     const form = e.target;
-    // Use querySelector because name attribute is reliable
-    const name = form.querySelector('[name="name"]').value;
-    const cost = parseFloat(form.querySelector('[name="costPrice"]').value) || 0;
+    const nameRaw = form.querySelector('[name="name"]').value;
+    
+    if (!isInputSafe(nameRaw)) {
+        showToast("Invalid product name.", "warning");
+        return;
+    }
+
+    const name = sanitizeInput(nameRaw);
+    const cost = parseFloat(parseFromCommas(form.querySelector('[name="costPrice"]').value)) || 0;
     const price = 0; // Price not collected in Add Form
     const qty = parseInt(form.querySelector('[name="quantity"]').value) || 0;
+
+    if (!name) {
+        showToast("Product name cannot be empty.", "warning");
+        return;
+    }
 
     const newProduct = {
         name,
@@ -306,7 +482,7 @@ function renderProductList(filterText = '') {
         // Let's just show Stock.
         item.innerHTML = `
             <div class="prod-info">
-                <h4>${p.name}</h4>
+                <h4>${escapeHTML(p.name)}</h4>
                 <p>Stock: ${formatNumber(p.qty)}</p>
             </div>
             <button class="btn-sm btn-accent" onclick="openSellModal('${p.id}')">
@@ -331,7 +507,7 @@ function openSellModal(productId) {
     document.getElementById('modal-product-name').innerText = `Sell ${product.name}`;
     document.getElementById('modal-stock-qty').innerText = formatNumber(product.qty);
     // If price is 0 (not set), leave empty for user to type
-    document.getElementById('modal-sell-price').value = product.price > 0 ? product.price : '';
+    document.getElementById('modal-sell-price').value = product.price > 0 ? formatWithCommas(product.price) : '';
     document.getElementById('modal-sell-qty').value = 1;
 
     document.getElementById('sell-modal').classList.remove('hidden');
@@ -352,7 +528,7 @@ function renderInventoryList() {
         item.className = 'product-item';
         item.innerHTML = `
             <div class="prod-info">
-                <h4>${p.name}</h4>
+                <h4>${escapeHTML(p.name)}</h4>
                 <p>Stock: ${formatNumber(p.qty)} • Cost: ${formatMoney(p.cost || 0)}</p>
             </div>
             <div class="prod-actions">
@@ -374,7 +550,7 @@ function openEditModal(productId) {
 
     document.getElementById('edit-product-id').value = product.id;
     document.getElementById('edit-product-name').value = product.name;
-    document.getElementById('edit-product-cost').value = product.cost || 0;
+    document.getElementById('edit-product-cost').value = formatWithCommas(product.cost || 0);
     document.getElementById('edit-product-qty').value = product.qty;
 
     document.getElementById('edit-modal').classList.remove('hidden');
@@ -387,8 +563,8 @@ function closeEditModal() {
 async function handleUpdateProduct(e) {
     e.preventDefault();
     const id = document.getElementById('edit-product-id').value;
-    const name = document.getElementById('edit-product-name').value;
-    const cost = parseFloat(document.getElementById('edit-product-cost').value) || 0;
+    const name = sanitizeInput(document.getElementById('edit-product-name').value);
+    const cost = parseFloat(parseFromCommas(document.getElementById('edit-product-cost').value)) || 0;
     const qty = parseInt(document.getElementById('edit-product-qty').value) || 0;
 
     showLoading();
@@ -442,7 +618,7 @@ async function confirmSell() {
     if(!currentSellProduct || !currentUser) return;
 
     const qty = parseInt(document.getElementById('modal-sell-qty').value);
-    const price = parseFloat(document.getElementById('modal-sell-price').value);
+    const price = parseFloat(parseFromCommas(document.getElementById('modal-sell-price').value));
 
     if(qty > currentSellProduct.qty) {
         showToast("Not enough stock!", 'warning');
@@ -514,12 +690,17 @@ function renderHistory() {
         el.className = 'history-item';
         el.innerHTML = `
             <div class="hist-main">
-                <h4>${t.productName}</h4>
+                <h4>${escapeHTML(t.productName)}</h4>
                 <span class="hist-date">${dateStr}</span>
             </div>
-            <div class="hist-meta">
-                 <span class="qty">x${formatNumber(t.qty)}</span>
-                 <span class="price">${formatMoney(t.price * t.qty)}</span>
+            <div class="hist-meta" style="display: flex; align-items: center; gap: 15px;">
+                 <div style="text-align: right;">
+                    <span class="qty">x${formatNumber(t.qty)}</span>
+                    <span class="price">${formatMoney(t.price * t.qty)}</span>
+                 </div>
+                 <button class="icon-btn-sm" onclick="openEditSaleModal('${t.id}')" title="Edit Sale">
+                    <i class="fa-solid fa-pen-to-square" style="color: var(--primary);"></i>
+                 </button>
             </div>
         `;
         container.appendChild(el);
@@ -575,6 +756,13 @@ function showToast(message, type = 'info') {
 // --- Loader Logic ---
 function showLoading() {
     const loader = document.getElementById('loader-overlay');
+    const status = document.getElementById('loader-status');
+    const retry = document.getElementById('retry-container');
+    const spinner = loader?.querySelector('.spinner');
+
+    if(status) status.innerText = 'Loading AnemaSales...';
+    if(retry) retry.classList.add('hidden');
+    if(spinner) spinner.style.display = 'block';
     if(loader) loader.style.display = 'flex';
 }
 
@@ -583,12 +771,102 @@ function hideLoading() {
     if(loader) loader.style.display = 'none';
 }
 
+function showRetry(message) {
+    const status = document.getElementById('loader-status');
+    const retry = document.getElementById('retry-container');
+    const loader = document.getElementById('loader-overlay');
+    
+    if(status) status.innerText = message;
+    if(retry) retry.classList.remove('hidden');
+    if(loader) loader.style.display = 'flex';
+    
+    // Hide spinner on error
+    const spinner = loader?.querySelector('.spinner');
+    if(spinner) spinner.style.display = 'none';
+}
+
 async function handleLogout() {
     showLoading();
     try {
         await signOut(auth);
     } catch (error) {
         console.error("Logout Error:", error);
+    } finally {
+        hideLoading();
+    }
+}
+
+// --- Edit Sale Logic ---
+function openEditSaleModal(transactionId) {
+    const transaction = transactionsCache.find(t => t.id === transactionId);
+    if (!transaction) return;
+
+    document.getElementById('edit-sale-id').value = transaction.id;
+    document.getElementById('edit-sale-product-name').innerText = transaction.productName;
+    document.getElementById('edit-sale-price').value = formatWithCommas(transaction.price);
+    document.getElementById('edit-sale-qty').value = transaction.qty;
+
+    document.getElementById('edit-sale-modal').classList.remove('hidden');
+}
+
+function closeEditSaleModal() {
+    document.getElementById('edit-sale-modal').classList.add('hidden');
+}
+
+async function handleUpdateSale(e) {
+    e.preventDefault();
+    const id = document.getElementById('edit-sale-id').value;
+    const newPrice = parseFloat(parseFromCommas(document.getElementById('edit-sale-price').value));
+    const newQty = parseInt(document.getElementById('edit-sale-qty').value);
+
+    if (isNaN(newPrice) || isNaN(newQty) || newQty < 1) {
+        showToast("Please enter valid price and quantity.", "warning");
+        return;
+    }
+
+    const transaction = transactionsCache.find(t => t.id === id);
+    if (!transaction) return;
+
+    const qtyDiff = newQty - transaction.qty;
+    const product = productsCache.find(p => p.id === transaction.productId);
+
+    // Stock check for updates
+    if (product && qtyDiff > product.qty) {
+        showToast(`Not enough stock! available: ${formatNumber(product.qty + transaction.qty)}`, "warning");
+        return;
+    }
+
+    showLoading();
+    try {
+        // 1. Update Transaction
+        await updateDoc(doc(db, "transactions", id), {
+            price: newPrice,
+            qty: newQty
+        });
+
+        // 2. Adjust Product Stock
+        if (product) {
+            const updatedStock = product.qty - qtyDiff;
+            await updateDoc(doc(db, "products", product.id), {
+                qty: updatedStock
+            });
+            // Update local product cache
+            product.qty = updatedStock;
+        }
+
+        // 3. Update local transaction cache
+        transaction.price = newPrice;
+        transaction.qty = newQty;
+
+        showToast("Sale updated & stock adjusted!", "success");
+        closeEditSaleModal();
+        updateDashboard();
+        renderHistory();
+        renderProductList();
+        renderInventoryList();
+    } catch (e) {
+        console.error("Update sale error:", e);
+        showToast("Update failed: " + e.message, "error");
     } finally {
         hideLoading();
     }

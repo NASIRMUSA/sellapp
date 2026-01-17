@@ -1,17 +1,17 @@
 :root {
   /* Colors */
-  --primary: #10b981;
-  --primary-dark: #059669;
-  --primary-light: #d1fae5;
-  --secondary: #6b7280;
-  --accent: #f59e0b;
-  --danger: #ef4444;
+  --primary: #0B5D0B;
+  --primary-dark: #084508;
+  --primary-light: #E6F4E6;
+  --secondary: #4B5563;
+  --accent: #F59E0B;
+  --danger: #EF4444;
 
-  --bg-app: #f3f4f6;
-  --bg-card: #ffffff;
-  --text-main: #1f2937;
-  --text-muted: #6b7280;
-  --text-light: #9ca3af;
+  --bg-app: #F2F2F2;
+  --bg-card: #FFFFFF;
+  --text-main: #1C1E21;
+  --text-muted: #4B5563;
+  --text-light: #9CA3AF;
 
   --border: #e5e7eb;
 
@@ -142,7 +142,7 @@ p {
 .btn-primary {
   background-color: var(--primary);
   color: white;
-  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 10px rgba(11, 93, 11, 0.3);
 }
 
 .btn-primary:hover {
@@ -252,10 +252,18 @@ input:focus {
 }
 .logo-area {
   margin-top: 60px;
+  animation: slideUp 0.8s ease-out;
 }
 .brand-icon {
-  color: var(--primary);
+  height: 80px;
+  width: auto;
+  object-fit: contain;
   margin-bottom: 24px;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+  transition: transform var(--transition);
+}
+.brand-icon:hover {
+  transform: scale(1.05);
 }
 .bottom-actions {
   display: flex;
