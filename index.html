@@ -178,6 +178,10 @@
             <i class="fa-solid fa-cart-shopping"></i>
             <span>Sell</span>
           </button>
+          <button class="nav-item" onclick="showScreen('credit-screen')">
+            <i class="fa-solid fa-book"></i>
+            <span>Credit</span>
+          </button>
         </nav>
       </section>
 
@@ -240,6 +244,10 @@
             <i class="fa-solid fa-cart-shopping"></i>
             <span>Sell</span>
           </button>
+          <button class="nav-item" onclick="showScreen('credit-screen')">
+            <i class="fa-solid fa-book"></i>
+            <span>Credit</span>
+          </button>
         </nav>
       </section>
 
@@ -288,6 +296,10 @@
             <i class="fa-solid fa-cart-shopping"></i>
             <span>Sell</span>
           </button>
+          <button class="nav-item" onclick="showScreen('credit-screen')">
+            <i class="fa-solid fa-book"></i>
+            <span>Credit</span>
+          </button>
         </nav>
       </section>
 
@@ -301,6 +313,94 @@
         </div>
         <div class="history-list">
           <!-- Dynamically populated from transactionsCache -->
+        </div>
+      </section>
+
+      <!-- SCREEN: CREDIT BOOK -->
+      <section id="credit-screen" class="screen">
+        <div class="app-header">
+          <h2>Credit Book</h2>
+          <button class="icon-btn" onclick="openAddCreditModal()" title="Add Customer">
+            <i class="fa-solid fa-user-plus" style="color: var(--primary);"></i>
+          </button>
+        </div>
+
+        <div class="credit-summary-cards">
+          <div class="credit-stat-card">
+            <span class="label">Total Credit</span>
+            <h3 class="value" id="total-credit-amount">₦0</h3>
+          </div>
+          <div class="credit-stat-card">
+            <span class="label">Customers</span>
+            <h3 class="value" id="total-credit-customers">0</h3>
+          </div>
+        </div>
+
+        <div class="search-bar-container">
+          <div class="search-input">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="credit-search" placeholder="Search customers..." />
+          </div>
+        </div>
+
+        <div id="credit-list" class="credit-list">
+          <!-- Dynamically populated from creditsCache -->
+        </div>
+
+        <!-- Bottom Nav -->
+        <nav class="bottom-nav">
+          <button class="nav-item" onclick="showScreen('dashboard-screen')">
+            <i class="fa-solid fa-house"></i>
+            <span>Home</span>
+          </button>
+          <button class="nav-item" onclick="showScreen('add-product-screen')">
+            <i class="fa-solid fa-plus-circle"></i>
+            <span>Add</span>
+          </button>
+          <button class="nav-item" onclick="showScreen('sell-screen')">
+            <i class="fa-solid fa-cart-shopping"></i>
+            <span>Sell</span>
+          </button>
+          <button class="nav-item active" onclick="showScreen('credit-screen')">
+            <i class="fa-solid fa-book"></i>
+            <span>Credit</span>
+          </button>
+        </nav>
+      </section>
+
+      <!-- SCREEN: CREDIT DETAILS -->
+      <section id="credit-detail-screen" class="screen">
+        <div class="header-simple">
+          <button class="icon-btn" onclick="showScreen('credit-screen')">
+            <i class="fa-solid fa-arrow-left"></i>
+          </button>
+          <h2 id="credit-detail-customer-name">Customer</h2>
+          <button class="icon-btn" onclick="deleteCustomer()" title="Delete Customer">
+            <i class="fa-solid fa-trash" style="color: #EF4444;"></i>
+          </button>
+        </div>
+
+        <div class="credit-detail-header">
+          <div class="credit-detail-info">
+            <p class="customer-phone" id="credit-detail-phone"></p>
+            <div class="credit-balance-display">
+              <span class="label">Outstanding Balance</span>
+              <h2 class="balance-amount" id="credit-detail-balance">₦0</h2>
+            </div>
+          </div>
+          <div class="credit-actions-row">
+            <button class="btn btn-primary btn-sm" onclick="openAddTransactionModal()">
+              <i class="fa-solid fa-plus"></i> Add Credit
+            </button>
+            <button class="btn btn-accent btn-sm" onclick="openPaymentModal()">
+              <i class="fa-solid fa-money-bill"></i> Record Payment
+            </button>
+          </div>
+        </div>
+
+        <h3 class="section-title" style="padding: 0 16px; margin-top: 20px;">Transaction History</h3>
+        <div id="credit-transactions-list" class="credit-transactions-list">
+          <!-- Dynamically populated -->
         </div>
       </section>
 
@@ -412,6 +512,113 @@
           </form>
         </div>
       </div>
+
+    <!-- MODAL: ADD CUSTOMER -->
+    <div id="add-credit-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Add Customer</h3>
+          <button class="close-btn" onclick="closeAddCreditModal()">
+            &times;
+          </button>
+        </div>
+        <form id="add-credit-form" onsubmit="handleAddCustomer(event)">
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Customer Name</label>
+              <input type="text" id="new-customer-name" placeholder="Full Name" required />
+            </div>
+            <div class="form-group">
+              <label>Phone Number</label>
+              <input type="tel" id="new-customer-phone" placeholder="08012345678" required />
+            </div>
+            <div class="form-group">
+              <label>Initial Credit Amount (₦)</label>
+              <input type="text" id="new-customer-amount" inputmode="decimal" class="money-input" placeholder="0.00" />
+            </div>
+            <div class="form-group">
+              <label>Description (Optional)</label>
+              <input type="text" id="new-customer-description" placeholder="e.g., Purchase details" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeAddCreditModal()">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">
+              Add Customer
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: ADD CREDIT TRANSACTION -->
+    <div id="add-transaction-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Add Credit</h3>
+          <button class="close-btn" onclick="closeAddTransactionModal()">
+            &times;
+          </button>
+        </div>
+        <form id="add-transaction-form" onsubmit="handleAddCreditTransaction(event)">
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Amount (₦)</label>
+              <input type="text" id="transaction-amount" inputmode="decimal" class="money-input" placeholder="0.00" required />
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <input type="text" id="transaction-description" placeholder="e.g., Purchased items" required />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeAddTransactionModal()">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">
+              Add Credit
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: RECORD PAYMENT -->
+    <div id="payment-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Record Payment</h3>
+          <button class="close-btn" onclick="closePaymentModal()">
+            &times;
+          </button>
+        </div>
+        <form id="payment-form" onsubmit="handleRecordPayment(event)">
+          <div class="modal-body">
+            <p class="stock-info">
+              Outstanding: <span id="payment-modal-balance">₦0</span>
+            </p>
+            <div class="form-group">
+              <label>Payment Amount (₦)</label>
+              <input type="text" id="payment-amount" inputmode="decimal" class="money-input" placeholder="0.00" required />
+            </div>
+            <div class="form-group">
+              <label>Note (Optional)</label>
+              <input type="text" id="payment-note" placeholder="e.g., Cash payment" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closePaymentModal()">
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">
+              Record Payment
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <!-- Loader Overlay -->
     <div id="loader-overlay" style="display: flex;">

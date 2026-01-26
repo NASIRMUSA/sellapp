@@ -60,6 +60,8 @@ let currentUser = null;
 let currentUserProfile = null;
 let productsCache = [];
 let transactionsCache = [];
+let creditsCache = []; // Customer credit records
+let currentCreditCustomer = null; // For detail view
 
 // --- Utilities ---
 function sanitizeInput(str) {
@@ -111,6 +113,18 @@ window.handleUpdateProduct = handleUpdateProduct;
 window.openEditSaleModal = openEditSaleModal;
 window.closeEditSaleModal = closeEditSaleModal;
 window.handleUpdateSale = handleUpdateSale;
+// Credit Book exports
+window.openAddCreditModal = openAddCreditModal;
+window.closeAddCreditModal = closeAddCreditModal;
+window.handleAddCustomer = handleAddCustomer;
+window.viewCreditDetail = viewCreditDetail;
+window.openAddTransactionModal = openAddTransactionModal;
+window.closeAddTransactionModal = closeAddTransactionModal;
+window.handleAddCreditTransaction = handleAddCreditTransaction;
+window.openPaymentModal = openPaymentModal;
+window.closePaymentModal = closePaymentModal;
+window.handleRecordPayment = handleRecordPayment;
+window.deleteCustomer = deleteCustomer;
 
 // Initialize Listeners
 document.addEventListener('DOMContentLoaded', () => {
@@ -150,8 +164,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Search Listener
     document.addEventListener('input', (e) => {
-        if(e.target.matches('.search-input input')) {
+        if(e.target.matches('#sell-screen .search-input input')) {
             renderProductList(e.target.value);
+        }
+        if(e.target.matches('#credit-search')) {
+            renderCreditList(e.target.value);
         }
     });
 
@@ -340,10 +357,23 @@ async function loadData() {
                 return dateB - dateA;
             });
 
+        // Load Credits
+        const qCredits = query(
+            collection(db, "credits"),
+            where("ownerId", "==", currentUser.uid)
+        );
+        const creditsSnap = await getDocs(qCredits);
+        
+        creditsCache = creditsSnap.docs
+            .map(d => ({id: d.id, ...d.data()}))
+            .sort((a, b) => a.customerName.localeCompare(b.customerName));
+
         updateDashboard();
         renderProductList();
         renderInventoryList();
         renderHistory();
+        renderCreditList();
+        updateCreditSummary();
         return true;
     } catch (e) {
         console.error("Error loading data:", e);
@@ -717,6 +747,11 @@ function showScreen(screenId) {
     if (screenId === 'add-product-screen') renderInventoryList();
     if (screenId === 'sell-screen') renderProductList();
     if (screenId === 'history-screen') renderHistory();
+    if (screenId === 'credit-screen') {
+        renderCreditList();
+        updateCreditSummary();
+    }
+    if (screenId === 'credit-detail-screen') renderCreditTransactions();
 }
 
 // --- Toast Notification ---
@@ -867,6 +902,399 @@ async function handleUpdateSale(e) {
     } catch (e) {
         console.error("Update sale error:", e);
         showToast("Update failed: " + e.message, "error");
+    } finally {
+        hideLoading();
+    }
+}
+// This file contains all credit book functions
+// To be appended to app.js
+
+// ========== CREDIT BOOK FUNCTIONS ==========
+
+// --- Render Credit List ---
+function renderCreditList(filterText = '') {
+    const container = document.getElementById('credit-list');
+    if(!container) return;
+    container.innerHTML = '';
+    
+    const filtered = creditsCache.filter(c => 
+        c.customerName.toLowerCase().includes(filterText.toLowerCase()) ||
+        c.phone.toLowerCase().includes(filterText.toLowerCase())
+    );
+
+    if(filtered.length === 0) {
+        container.innerHTML = '<p style="text-align:center; padding:20px; color:#999;">No customers yet.</p>';
+        return;
+    }
+
+    filtered.forEach(c => {
+        const item = document.createElement('div');
+        item.className = 'credit-item';
+        item.onclick = () => viewCreditDetail(c.id);
+        
+        item.innerHTML = `
+            <div class="credit-item-info">
+                <h4>${escapeHTML(c.customerName)}</h4>
+                <p class="phone">${escapeHTML(c.phone)}</p>
+            </div>
+            <div class="credit-item-balance">
+                <span class="amount">${formatMoney(c.balance || 0)}</span>
+                <span class="label">Outstanding</span>
+            </div>
+        `;
+        container.appendChild(item);
+    });
+}
+
+// --- Update Credit Summary ---
+function updateCreditSummary() {
+    const totalCredit = creditsCache.reduce((sum, c) => sum + (c.balance || 0), 0);
+    const totalCustomers = creditsCache.length;
+    
+    safeSetText('total-credit-amount', formatMoney(totalCredit));
+    safeSetText('total-credit-customers', totalCustomers);
+}
+
+// --- Add Customer Modal ---
+function openAddCreditModal() {
+    document.getElementById('add-credit-modal').classList.remove('hidden');
+    document.getElementById('add-credit-form').reset();
+}
+
+function closeAddCreditModal() {
+    document.getElementById('add-credit-modal').classList.add('hidden');
+}
+
+async function handleAddCustomer(e) {
+    e.preventDefault();
+    if(!currentUser) return;
+
+    const nameRaw = document.getElementById('new-customer-name').value;
+    const phoneRaw = document.getElementById('new-customer-phone').value;
+    const amountRaw = document.getElementById('new-customer-amount').value;
+    const descriptionRaw = document.getElementById('new-customer-description').value;
+
+    if (!isInputSafe(nameRaw) || !isInputSafe(phoneRaw) || !isInputSafe(descriptionRaw)) {
+        showToast("Invalid input detected.", "warning");
+        return;
+    }
+
+    const customerName = sanitizeInput(nameRaw);
+    const phone = sanitizeInput(phoneRaw);
+    const amount = parseFloat(parseFromCommas(amountRaw)) || 0;
+    const description = sanitizeInput(descriptionRaw);
+
+    if (!customerName || !phone) {
+        showToast("Please fill in customer name and phone.", "warning");
+        return;
+    }
+
+    const newCredit = {
+        customerName,
+        phone,
+        balance: amount,
+        ownerId: currentUser.uid,
+        createdAt: Timestamp.now()
+    };
+
+    showLoading();
+    try {
+        const docRef = await addDoc(collection(db, "credits"), newCredit);
+        newCredit.id = docRef.id;
+        creditsCache.push(newCredit);
+        creditsCache.sort((a, b) => a.customerName.localeCompare(b.customerName));
+
+        // If there's an initial amount, create a transaction
+        if (amount > 0) {
+            const transaction = {
+                creditId: docRef.id,
+                type: 'credit', // credit or payment
+                amount: amount,
+                description: description || 'Initial credit',
+                date: Timestamp.now(),
+                ownerId: currentUser.uid
+            };
+            await addDoc(collection(db, "creditTransactions"), transaction);
+        }
+
+        showToast('Customer added!', 'success');
+        closeAddCreditModal();
+        renderCreditList();
+        updateCreditSummary();
+    } catch (e) {
+        showToast("Error adding customer: " + e.message, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// --- View Credit Detail ---
+function viewCreditDetail(creditId) {
+    const credit = creditsCache.find(c => c.id === creditId);
+    if (!credit) return;
+
+    currentCreditCustomer = credit;
+    
+    document.getElementById('credit-detail-customer-name').innerText = credit.customerName;
+    document.getElementById('credit-detail-phone').innerText = credit.phone;
+    document.getElementById('credit-detail-balance').innerText = formatMoney(credit.balance || 0);
+    
+    showScreen('credit-detail-screen');
+}
+
+// --- Render Credit Transactions ---
+async function renderCreditTransactions() {
+    if (!currentCreditCustomer) return;
+
+    const container = document.getElementById('credit-transactions-list');
+    if (!container) return;
+    container.innerHTML = '<p style="text-align:center; padding:20px; color:#999;">Loading...</p>';
+
+    try {
+        const q = query(
+            collection(db, "creditTransactions"),
+            where("creditId", "==", currentCreditCustomer.id),
+            where("ownerId", "==", currentUser.uid)
+        );
+        const snapshot = await getDocs(q);
+        
+        const transactions = snapshot.docs
+            .map(d => ({id: d.id, ...d.data()}))
+            .sort((a, b) => {
+                const dateA = a.date && a.date.toDate ? a.date.toDate() : new Date(a.date || 0);
+                const dateB = b.date && b.date.toDate ? b.date.toDate() : new Date(b.date || 0);
+                return dateB - dateA;
+            });
+
+        container.innerHTML = '';
+
+        if (transactions.length === 0) {
+            container.innerHTML = '<p style="text-align:center; padding:20px; color:#999;">No transactions yet.</p>';
+            return;
+        }
+
+        transactions.forEach(t => {
+            let dateObj;
+            if(t.date && t.date.toDate) {
+                dateObj = t.date.toDate();
+            } else {
+                dateObj = new Date(t.date);
+            }
+            const dateStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            const el = document.createElement('div');
+            el.className = 'credit-transaction-item';
+            
+            const typeClass = t.type === 'payment' ? 'payment' : 'credit';
+            const sign = t.type === 'payment' ? '-' : '+';
+            
+            el.innerHTML = `
+                <div class="transaction-header">
+                    <span class="transaction-type ${typeClass}">${t.type}</span>
+                    <span class="transaction-amount ${typeClass}">${sign}${formatMoney(t.amount)}</span>
+                </div>
+                <p class="transaction-description">${escapeHTML(t.description || 'No description')}</p>
+                <p class="transaction-date">${dateStr}</p>
+            `;
+            container.appendChild(el);
+        });
+    } catch (e) {
+        console.error("Error loading transactions:", e);
+        container.innerHTML = '<p style="text-align:center; padding:20px; color:#999;">Error loading transactions.</p>';
+    }
+}
+
+// --- Add Credit Transaction Modal ---
+function openAddTransactionModal() {
+    if (!currentCreditCustomer) return;
+    document.getElementById('add-transaction-modal').classList.remove('hidden');
+    document.getElementById('add-transaction-form').reset();
+}
+
+function closeAddTransactionModal() {
+    document.getElementById('add-transaction-modal').classList.add('hidden');
+}
+
+async function handleAddCreditTransaction(e) {
+    e.preventDefault();
+    if (!currentCreditCustomer || !currentUser) return;
+
+    const amountRaw = document.getElementById('transaction-amount').value;
+    const descriptionRaw = document.getElementById('transaction-description').value;
+
+    if (!isInputSafe(descriptionRaw)) {
+        showToast("Invalid description.", "warning");
+        return;
+    }
+
+    const amount = parseFloat(parseFromCommas(amountRaw));
+    const description = sanitizeInput(descriptionRaw);
+
+    if (isNaN(amount) || amount <= 0) {
+        showToast("Please enter a valid amount.", "warning");
+        return;
+    }
+
+    const transaction = {
+        creditId: currentCreditCustomer.id,
+        type: 'credit',
+        amount: amount,
+        description: description,
+        date: Timestamp.now(),
+        ownerId: currentUser.uid
+    };
+
+    showLoading();
+    try {
+        await addDoc(collection(db, "creditTransactions"), transaction);
+        
+        // Update balance
+        const newBalance = (currentCreditCustomer.balance || 0) + amount;
+        await updateDoc(doc(db, "credits", currentCreditCustomer.id), {
+            balance: newBalance
+        });
+
+        currentCreditCustomer.balance = newBalance;
+        const idx = creditsCache.findIndex(c => c.id === currentCreditCustomer.id);
+        if (idx !== -1) {
+            creditsCache[idx].balance = newBalance;
+        }
+
+        document.getElementById('credit-detail-balance').innerText = formatMoney(newBalance);
+        
+        showToast('Credit added!', 'success');
+        closeAddTransactionModal();
+        renderCreditTransactions();
+        updateCreditSummary();
+    } catch (e) {
+        showToast("Error adding credit: " + e.message, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// --- Payment Modal ---
+function openPaymentModal() {
+    if (!currentCreditCustomer) return;
+    document.getElementById('payment-modal').classList.remove('hidden');
+    document.getElementById('payment-form').reset();
+    document.getElementById('payment-modal-balance').innerText = formatMoney(currentCreditCustomer.balance || 0);
+}
+
+function closePaymentModal() {
+    document.getElementById('payment-modal').classList.add('hidden');
+}
+
+async function handleRecordPayment(e) {
+    e.preventDefault();
+    if (!currentCreditCustomer || !currentUser) return;
+
+    const amountRaw = document.getElementById('payment-amount').value;
+    const noteRaw = document.getElementById('payment-note').value;
+
+    if (!isInputSafe(noteRaw)) {
+        showToast("Invalid note.", "warning");
+        return;
+    }
+
+    const amount = parseFloat(parseFromCommas(amountRaw));
+    const note = sanitizeInput(noteRaw);
+
+    if (isNaN(amount) || amount <= 0) {
+        showToast("Please enter a valid amount.", "warning");
+        return;
+    }
+
+    if (amount > currentCreditCustomer.balance) {
+        showToast("Payment exceeds outstanding balance!", "warning");
+        return;
+    }
+
+    const transaction = {
+        creditId: currentCreditCustomer.id,
+        type: 'payment',
+        amount: amount,
+        description: note || 'Payment received',
+        date: Timestamp.now(),
+        ownerId: currentUser.uid
+    };
+
+    showLoading();
+    try {
+        await addDoc(collection(db, "creditTransactions"), transaction);
+        
+        // Update balance
+        const newBalance = (currentCreditCustomer.balance || 0) - amount;
+        await updateDoc(doc(db, "credits", currentCreditCustomer.id), {
+            balance: newBalance
+        });
+
+        currentCreditCustomer.balance = newBalance;
+        const idx = creditsCache.findIndex(c => c.id === currentCreditCustomer.id);
+        if (idx !== -1) {
+            creditsCache[idx].balance = newBalance;
+        }
+
+        document.getElementById('credit-detail-balance').innerText = formatMoney(newBalance);
+        
+        showToast('Payment recorded!', 'success');
+        closePaymentModal();
+        renderCreditTransactions();
+        updateCreditSummary();
+    } catch (e) {
+        showToast("Error recording payment: " + e.message, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+// --- Delete Customer ---
+async function deleteCustomer() {
+    if (!currentCreditCustomer) return;
+
+    const customerName = currentCreditCustomer.customerName;
+    const balance = currentCreditCustomer.balance || 0;
+
+    // Warn if customer still has outstanding balance
+    let confirmMessage = `Are you sure you want to delete "${customerName}"?`;
+    if (balance > 0) {
+        confirmMessage = `"${customerName}" still has an outstanding balance of ${formatMoney(balance)}.\n\nAre you sure you want to delete this customer? This will also delete all transaction history.`;
+    } else {
+        confirmMessage += '\n\nThis will also delete all transaction history.';
+    }
+
+    if (!confirm(confirmMessage)) return;
+
+    showLoading();
+    try {
+        // Delete all credit transactions for this customer
+        const qTrans = query(
+            collection(db, "creditTransactions"),
+            where("creditId", "==", currentCreditCustomer.id),
+            where("ownerId", "==", currentUser.uid)
+        );
+        const transSnap = await getDocs(qTrans);
+        
+        // Delete all transactions
+        const deletePromises = transSnap.docs.map(doc => 
+            deleteDoc(doc.ref)
+        );
+        await Promise.all(deletePromises);
+
+        // Delete the customer record
+        await deleteDoc(doc(db, "credits", currentCreditCustomer.id));
+
+        // Remove from cache
+        creditsCache = creditsCache.filter(c => c.id !== currentCreditCustomer.id);
+        currentCreditCustomer = null;
+
+        showToast('Customer deleted successfully!', 'success');
+        showScreen('credit-screen');
+        renderCreditList();
+        updateCreditSummary();
+    } catch (e) {
+        console.error("Delete customer error:", e);
+        showToast("Error deleting customer: " + e.message, 'error');
     } finally {
         hideLoading();
     }
