@@ -124,6 +124,10 @@ window.handleAddCreditTransaction = handleAddCreditTransaction;
 window.openPaymentModal = openPaymentModal;
 window.closePaymentModal = closePaymentModal;
 window.handleRecordPayment = handleRecordPayment;
+window.openFilterModal = openFilterModal;
+window.closeFilterModal = closeFilterModal;
+window.setFilterRange = setFilterRange;
+window.calculateFilterStats = calculateFilterStats;
 window.deleteCustomer = deleteCustomer;
 
 // Initialize Listeners
@@ -752,6 +756,82 @@ function showScreen(screenId) {
         updateCreditSummary();
     }
     if (screenId === 'credit-detail-screen') renderCreditTransactions();
+}
+
+// --- Filter Logic ---
+function openFilterModal() {
+    const modal = document.getElementById('filter-modal');
+    if(modal) {
+        modal.classList.remove('hidden');
+        // Set default to this week if inputs empty
+        if(!document.getElementById('filter-start-date').value) {
+            setFilterRange('week');
+        }
+    }
+}
+
+function closeFilterModal() {
+    const modal = document.getElementById('filter-modal');
+    if(modal) modal.classList.add('hidden');
+}
+
+function setFilterRange(type) {
+    const now = new Date();
+    const startInput = document.getElementById('filter-start-date');
+    const endInput = document.getElementById('filter-end-date');
+    
+    // Format YYYY-MM-DD
+    const formatDate = (date) => date.toISOString().split('T')[0];
+    
+    if(type === 'week') {
+        const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        startInput.value = formatDate(lastWeek);
+        endInput.value = formatDate(now);
+    } else if (type === 'month') {
+        const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        startInput.value = formatDate(lastMonth);
+        endInput.value = formatDate(now);
+    }
+    
+    // Auto calculate on quick select
+    calculateFilterStats();
+}
+
+function calculateFilterStats() {
+    const startVal = document.getElementById('filter-start-date').value;
+    const endVal = document.getElementById('filter-end-date').value;
+    
+    if(!startVal || !endVal) {
+        // If user manually cleared one, do nothing or show 0
+        safeSetText('filter-result-sales', '₦0.00');
+        safeSetText('filter-result-profit', '₦0.00');
+        return;
+    }
+
+    const startDate = new Date(startVal);
+    startDate.setHours(0,0,0,0);
+    
+    const endDate = new Date(endVal);
+    endDate.setHours(23,59,59,999);
+
+    let totalSales = 0;
+    let totalProfit = 0;
+
+    transactionsCache.forEach(t => {
+        const tDate = t.date && t.date.toDate ? t.date.toDate() : new Date(t.date);
+        
+        if(tDate >= startDate && tDate <= endDate) {
+            const saleAmount = t.price * t.qty;
+            const costAmount = (t.cost || 0) * t.qty;
+            const profit = saleAmount - costAmount;
+            
+            totalSales += saleAmount;
+            totalProfit += profit;
+        }
+    });
+
+    safeSetText('filter-result-sales', formatMoney(totalSales));
+    safeSetText('filter-result-profit', formatMoney(totalProfit));
 }
 
 // --- Toast Notification ---

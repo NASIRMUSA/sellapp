@@ -10,12 +10,404 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="style.css" />
+    <!-- TailwindCSS CDN (No-Build) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#0B5D0B',
+              'primary-dark': '#084508',
+              'primary-light': '#E6F4E6',
+              secondary: '#4B5563',
+              accent: '#F59E0B',
+              danger: '#EF4444',
+              'bg-app': '#F2F2F2',
+              'bg-card': '#FFFFFF',
+              'text-main': '#1C1E21',
+              'text-muted': '#4B5563',
+              'text-light': '#9CA3AF',
+              border: '#e5e7eb',
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+
     <!-- FontAwesome for Icons -->
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
+
+    <style type="text/tailwindcss">
+      @layer base {
+        :root {
+          --primary: #0B5D0B;
+          --primary-dark: #084508;
+          --primary-light: #E6F4E6;
+          --secondary: #4B5563;
+          --accent: #F59E0B;
+          --danger: #EF4444;
+          --bg-app: #F2F2F2;
+          --bg-card: #FFFFFF;
+          --text-main: #1C1E21;
+          --text-muted: #4B5563;
+          --text-light: #9CA3AF;
+          --border: #e5e7eb;
+          /* Fallback for potential JS typos */
+          --primary-color: #0B5D0B; 
+        }
+        body {
+          @apply font-sans text-text-main bg-bg-app leading-relaxed overflow-x-hidden;
+        }
+        h1 { @apply text-3xl font-bold text-text-main leading-tight mb-2; }
+        h2 { @apply text-2xl font-bold text-text-main; }
+        h3 { @apply text-xl font-semibold text-text-main; }
+        h4 { @apply text-base font-semibold text-text-main; }
+        p { @apply text-text-muted text-sm; }
+      }
+
+      @layer components {
+        .app-container {
+          /* margin: 0 auto; -> mx-auto (already there) */
+          @apply w-full max-w-[480px] mx-auto bg-bg-app min-h-screen relative shadow-2xl;
+        }
+        
+        /* Screens */
+        .screen {
+          /* padding-bottom: 80px; -> pb-20 (80px is 5rem) */
+          @apply hidden min-h-screen pb-20 animate-[fadeIn_0.3s_ease-out];
+        }
+        .screen.active {
+          @apply block;
+        }
+        
+        /* Buttons */
+        .btn {
+          /* padding: 12px 24px; -> py-3 px-6 */
+          @apply inline-flex items-center justify-center px-6 py-3 rounded-xl font-semibold text-[15px] 
+                 cursor-pointer border-none transition-all duration-200 no-underline active:scale-95;
+        }
+        .btn-block { @apply w-full; }
+        .btn-primary { 
+          @apply bg-primary text-white shadow-lg shadow-green-900/20 hover:bg-primary-dark; 
+        }
+        .btn-outline {
+          @apply bg-transparent border-2 border-border text-text-main hover:border-primary hover:text-primary;
+        }
+        .btn-secondary {
+          @apply bg-transparent text-text-muted hover:text-text-main;
+        }
+        .btn-sm {
+          /* padding: 6px 14px; -> py-1.5 px-3.5 */
+          @apply px-3.5 py-1.5 text-xs rounded-lg;
+        }
+        .btn-accent {
+          @apply bg-primary-light text-primary-dark hover:bg-primary hover:text-white;
+        }
+        .icon-btn {
+          /* padding: 8px; -> p-2 */
+          @apply bg-transparent border-none text-xl text-text-main p-2 cursor-pointer transition-transform active:scale-90;
+        }
+        .icon-btn-sm {
+          /* width: 32px; height: 32px; -> w-8 h-8 */
+          @apply bg-bg-app border-none w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors hover:bg-gray-200 active:scale-90;
+        }
+
+        /* Forms */
+        .form-group { 
+          /* margin-bottom: 16px; -> mb-4 */
+          @apply mb-4; 
+        }
+        .form-group label { 
+          /* margin-bottom: 6px; -> mb-1.5 */
+          @apply block text-xs font-medium text-text-main mb-1.5; 
+        }
+        input {
+          /* padding: 12px 16px; -> py-3 px-4 */
+          @apply w-full px-4 py-3 rounded-xl border border-border bg-bg-card text-[15px] text-text-main 
+                 transition-all outline-none focus:border-primary focus:ring-4 focus:ring-primary-light;
+        }
+
+        /* Stats & Cards */
+        .stat-card {
+           /* padding: 16px; -> p-4 */
+           /* gap: 12px; -> gap-3 */
+          @apply bg-bg-card p-4 rounded-2xl shadow-sm flex flex-col gap-3 border border-gray-100;
+        }
+        /* stat-card.highlight alignment */
+        .stat-card.highlight {
+            @apply col-span-2 flex-row items-center bg-gradient-to-br from-primary to-primary-dark text-white;
+        }
+
+        .stat-info .label { 
+            /* margin-bottom: 4px; -> mb-1 */
+            @apply text-xs text-text-muted block mb-1; 
+        }
+        .stat-info .value { @apply text-xl font-bold text-text-main; }
+        
+        /* Headers */
+        .app-header, .header-simple {
+          /* padding: 24px 16px; -> py-6 px-4 */
+          @apply px-4 py-6 flex items-center justify-between bg-bg-app sticky top-0 z-30;
+        }
+        .header-simple { 
+            /* gap: 16px; -> gap-4 */
+            @apply gap-4; 
+        }
+        .header-simple h2 { @apply flex-1; }
+        
+        /* Welcome */
+        .welcome-content {
+          /* padding: 32px; -> p-8 */
+          @apply flex flex-col h-screen p-8 justify-between text-center bg-white;
+        }
+        .logo-area { 
+            /* margin-top: 60px; -> mt-[60px] */
+            @apply mt-[60px] animate-[slideUp_0.8s_ease-out]; 
+        }
+        .brand-icon { 
+          /* margin-bottom: 24px; -> mb-6 */
+          @apply h-20 w-auto object-contain mb-6 drop-shadow-md transition-transform hover:scale-105; 
+        }
+        .bottom-actions { 
+            /* gap: 16px; -> gap-4 */
+            /* margin-bottom: 20px; -> mb-5 */
+            @apply flex flex-col gap-4 mb-5; 
+        }
+        
+        /* Auth Form */
+        .auth-form { 
+            /* padding: 0 24px; -> px-6 */
+            /* margin-top: 10px; -> mt-2.5 */
+            @apply px-6 mt-2.5; 
+        }
+        
+        /* Dashboard */
+        .shop-name-badge {
+          /* padding: 4px 12px; -> px-3 py-1 */
+          @apply bg-primary-light text-primary-dark px-3 py-1 rounded-full text-xs font-semibold inline-block mt-1;
+        }
+        .dashboard-content {
+          /* padding: 0 16px; -> px-4 */
+          /* gap: 16px; -> gap-4 */
+          @apply grid grid-cols-2 gap-4 px-4;
+        }
+
+        /* Product & Lists */
+        .product-list, .credit-list { 
+            /* padding: 0 16px 100px; -> px-4 pb-24 */
+            @apply px-4 pb-24; 
+        }
+        .product-item, .credit-item {
+          /* padding: 16px; -> p-4 */
+          /* margin-bottom: 12px; -> mb-3 */
+          @apply bg-white p-4 rounded-xl mb-3 flex justify-between items-center shadow-sm border border-gray-50 transition-transform active:scale-[0.99];
+        }
+        .prod-actions { @apply flex gap-2; } /* missing class added */
+
+        .history-list { 
+             /* padding: 0 16px; -> px-4 */
+             @apply px-4 pb-24; 
+        }
+        .history-item {
+          /* padding: 16px; -> p-4 */
+          /* margin-bottom: 12px; -> mb-3 */
+          @apply bg-white p-4 rounded-xl mb-3 flex justify-between items-center border-l-4 border-primary shadow-sm;
+        }
+        .hist-main h4, .prod-info h4 { 
+            /* margin-bottom: 4px; -> mb-1 */
+            @apply text-[15px] font-semibold mb-1; 
+        }
+        .hist-date { @apply text-xs text-text-light; }
+        
+        /* Credit Specific */
+        .credit-item { @apply border-l-4 border-primary; }
+        .credit-summary-cards { 
+            /* padding: 0 16px 16px; -> px-4 pb-4 */
+            /* gap: 12px; -> gap-3 */
+            @apply grid grid-cols-2 gap-3 px-4 pb-4; 
+        }
+        .credit-stat-card { 
+            /* padding: 16px; -> p-4 */
+            @apply bg-bg-card p-4 rounded-xl shadow-sm text-center; 
+        }
+        .credit-stat-card .label { 
+            /* margin-bottom: 8px; -> mb-2 */
+            @apply text-xs text-text-muted block mb-2; 
+        }
+        .credit-stat-card .value { @apply text-xl font-bold text-primary; }
+
+        .credit-detail-header { 
+            /* padding: 20px 16px; -> p-5 (p-5 is 1.25rem = 20px) */
+            /* margin-bottom: 16px; -> mb-4 */
+            @apply bg-white p-5 mb-4 shadow-sm; 
+        }
+        .credit-detail-info { 
+            /* margin-bottom: 16px; -> mb-4 */
+            @apply mb-4; 
+        }
+        .customer-phone { @apply text-sm text-text-muted mb-3; }
+        .credit-balance-display { 
+            /* padding: 16px; -> p-4 */
+            @apply bg-primary-light p-4 rounded-xl text-center; 
+        }
+        .credit-balance-display .label { 
+            /* margin-bottom: 8px; -> mb-2 */
+            @apply text-xs text-text-muted block mb-2; 
+        }
+        .balance-amount { @apply text-3xl font-bold text-danger; }
+        .credit-actions-row { 
+            /* gap: 12px; -> gap-3 */
+            @apply flex gap-3; 
+        }
+        .credit-actions-row .btn { @apply flex-1; }
+        
+        .credit-transactions-list { 
+            /* padding: 0 16px 20px; -> px-4 pb-5 */
+            @apply px-4 pb-5; 
+        }
+        .credit-transaction-item {
+             /* padding: 14px; -> p-3.5 */
+             /* margin-bottom: 10px; -> mb-2.5 */
+             @apply bg-white p-3.5 rounded-xl mb-2.5 shadow-sm border border-gray-50;
+        }
+        .transaction-header { 
+            /* margin-bottom: 6px; -> mb-1.5 */
+            @apply flex justify-between items-center mb-1.5; 
+        }
+        .transaction-type { 
+            /* padding: 4px 10px; -> px-2.5 py-1 */
+            @apply px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider; 
+        }
+        .transaction-type.credit { @apply bg-red-100 text-red-700; }
+        .transaction-type.payment { @apply bg-primary-light text-primary-dark; }
+        
+        .transaction-amount { @apply text-base font-bold; }
+        .transaction-amount.credit { @apply text-danger; }
+        .transaction-amount.payment { @apply text-primary; }
+        
+        .transaction-description { 
+            /* margin-bottom: 4px; -> mb-1 */
+            @apply text-[13px] text-text-main mb-1; 
+        }
+        .transaction-date { @apply text-[11px] text-text-light; }
+        
+        .credit-item-balance { @apply text-right; }
+        .credit-item-balance .amount { @apply text-lg font-bold text-danger block; }
+        .credit-item-balance .label { @apply text-[11px] text-text-light; }
+        
+        /* Modals */
+        .modal-overlay {
+          @apply fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300;
+        }
+        .modal-overlay:not(.hidden) { @apply opacity-100 pointer-events-auto; }
+        .modal-content {
+           /* padding: 24px; -> p-6 */
+          @apply bg-white w-full max-w-[480px] rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl transform translate-y-full transition-transform duration-300;
+        }
+        .modal-overlay:not(.hidden) .modal-content { @apply translate-y-0; }
+
+        .modal-header { 
+            /* margin-bottom: 20px; -> mb-5 */
+            @apply flex justify-between items-center mb-5; 
+        }
+        .close-btn { @apply text-2xl bg-transparent border-none cursor-pointer text-text-muted; }
+        .stock-info { 
+            /* margin-bottom: 16px; -> mb-4 */
+            /* padding: 8px 12px; -> px-3 py-2 */
+            @apply text-sm text-text-muted mb-4 bg-bg-app px-3 py-2 rounded-lg inline-block; 
+        }
+        .modal-footer { 
+            /* margin-top: 24px; -> mt-6 */
+            /* gap: 12px; -> gap-3 */
+            @apply flex gap-3 mt-6; 
+        }
+        
+        /* Nav */
+        .bottom-nav {
+          /* padding: 10px 0; -> py-2.5 */
+          @apply fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white 
+                 py-2.5 flex justify-around border-t border-border z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)];
+        }
+        .nav-item {
+          /* gap: 4px; -> gap-1 */
+          @apply bg-transparent border-none flex flex-col items-center gap-1 text-text-light text-[10px] cursor-pointer transition-colors;
+        }
+        .nav-item.active { @apply text-primary; }
+        .nav-item i { 
+            /* margin-bottom: 2px; -> mb-0.5 */
+            @apply text-xl mb-0.5; 
+        }
+        
+        /* Utils */
+        .manage-products-section, .section-title { 
+            /* margin-bottom: 16px; -> mb-4 */
+            /* padding-left: 4px; -> pl-1 */
+            @apply mt-8 mb-4 pl-1 text-base font-semibold text-text-muted; 
+        }
+        .search-bar-container { 
+            /* padding: 0 16px 16px; -> px-4 pb-4 */
+            @apply px-4 pb-4 sticky top-0 bg-bg-app z-20; 
+        }
+        .search-input { @apply relative; }
+        .search-input i { 
+            /* left: 14px; -> left-3.5 */
+            @apply absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted z-10; 
+        }
+        .search-input input { 
+            /* padding-left: 40px; -> pl-10 */
+            @apply pl-10; 
+        }
+
+        /* Animation Keyframes */
+        @keyframes slideUp {
+          from { transform: translateY(100%); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeOut {
+          to { opacity: 0; transform: translateY(-10px); }
+        }
+        
+        /* Toasts */
+        #toast-container { 
+          @apply fixed top-5 left-5 right-5 sm:left-auto z-[100] flex flex-col gap-3 items-center sm:items-end; 
+        }
+        .toast {
+          @apply bg-white text-text-main px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[250px] border-l-4 border-gray-400 translate-y-[-20px] opacity-0 transition-all duration-300;
+        }
+        .toast.visible { @apply translate-y-0 opacity-100; }
+        .toast.success { @apply border-primary; }
+        .toast.error { @apply border-danger; }
+        .toast.warning { @apply border-accent; }
+        
+        /* Add Product Styles */
+        .content-scrollable {
+          @apply px-4 pb-24;
+        }
+        .app-form {
+          @apply bg-white p-5 rounded-xl shadow-sm;
+        }
+
+        /* Spinner */
+        .spinner {
+          @apply w-12 h-12 border-4 border-gray-200 border-t-primary rounded-full animate-spin;
+        }
+
+        #loader-overlay {
+          @apply fixed top-0 left-0 w-full h-full bg-white/85 backdrop-blur-[2px] hidden flex-col justify-center items-center z-[20000];
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="app" class="app-container">
@@ -125,12 +517,12 @@
               <h3 class="value" id="dash-total-products">0</h3>
             </div>
           </div>
-          <div class="stat-card">
+          <!-- <div class="stat-card">
             <div class="stat-info">
               <span class="label">Total Shop Value</span>
               <h3 class="value" id="dash-total-value">₦0</h3>
             </div>
-          </div>
+          </div> -->
 
           <!-- Row 2 -->
           <div class="stat-card">
@@ -310,6 +702,9 @@
             <i class="fa-solid fa-arrow-left"></i>
           </button>
           <h2>Sales History</h2>
+          <button class="icon-btn" onclick="openFilterModal()" title="Analyze Sales">
+             <i class="fa-solid fa-chart-pie" style="color: var(--primary);"></i>
+          </button>
         </div>
         <div class="history-list">
           <!-- Dynamically populated from transactionsCache -->
@@ -553,7 +948,7 @@
       </div>
     </div>
 
-    <!-- MODAL: ADD CREDIT TRANSACTION -->
+      <!-- MODAL: ADD CREDIT TRANSACTION -->
     <div id="add-transaction-modal" class="modal-overlay hidden">
       <div class="modal-content">
         <div class="modal-header">
@@ -617,6 +1012,55 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+
+    <!-- MODAL: SALES FILTER ANALYSIS -->
+    <div id="filter-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Analyze Sales</h3>
+          <button class="close-btn" onclick="closeFilterModal()">
+            &times;
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="flex gap-2 mb-4">
+            <button class="btn btn-sm btn-outline flex-1" onclick="setFilterRange('week')">This Week</button>
+            <button class="btn btn-sm btn-outline flex-1" onclick="setFilterRange('month')">This Month</button>
+          </div>
+          
+          <div class="form-group">
+             <label>Start Date</label>
+             <input type="date" id="filter-start-date" />
+          </div>
+          <div class="form-group">
+            <label>End Date</label>
+            <input type="date" id="filter-end-date" />
+         </div>
+
+         <div class="bg-primary-light p-4 rounded-xl mt-4 text-center">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                   <span class="text-xs text-text-muted block mb-1">Total Sales</span>
+                   <h3 class="text-lg font-bold text-primary" id="filter-result-sales">₦0.00</h3>
+                </div>
+                <div>
+                  <span class="text-xs text-text-muted block mb-1">Total Profit</span>
+                  <h3 class="text-lg font-bold text-primary" id="filter-result-profit">₦0.00</h3>
+               </div>
+            </div>
+         </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeFilterModal()">
+            Close
+          </button>
+          <button type="button" class="btn btn-primary" onclick="calculateFilterStats()">
+            Calculate
+          </button>
+        </div>
       </div>
     </div>
 
